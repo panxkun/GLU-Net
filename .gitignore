@@ -1,0 +1,17 @@
+./.ipynb_checkpoints
+./.idea
+./evaluation
+./images
+./pre_trained_models.zip
+./pre_trained_models/GLOBALNet_DPED_CityScape_ADE.pth
+./pre_trained_models/GLOCALNet_DPED_CityScape_ADE.pth
+./pre_trained_models/LOCALNet_DPED_CityScape_ADE.pth
+./pre_trained_models/Semantic_GLUNet_DPED_CityScape_ADE.pth
+./sample
+./datasets/__init__.py
+./datasets/__pycache__
+./models/__pycache__
+./models/our_models/__pycache__
+./models/feature_backbones/__pycache__
+./utils/__pycache__
+./utils_training/__pycache__
