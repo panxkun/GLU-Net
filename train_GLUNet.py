@@ -19,6 +19,9 @@ from models.our_models.GLUNet import GLUNet_model
 from utils_training.utils_CNN import load_checkpoint, save_checkpoint, boolean_string
 from tensorboardX import SummaryWriter
 from utils.image_transforms import ArrayToTensor
+from datasets.Pose_dataloader import PoseDataset
+import warnings
+warnings.filterwarnings('ignore')
 
 if __name__ == "__main__":
     # Argument parsing
@@ -48,7 +51,7 @@ if __name__ == "__main__":
                         help='start epoch')
     parser.add_argument('--n_epoch', type=int, default=100,
                         help='number of training epochs')
-    parser.add_argument('--batch-size', type=int, default=16,
+    parser.add_argument('--batch-size', type=int, default=5,
                         help='training batch size')
     parser.add_argument('--n_threads', type=int, default=8,
                         help='number of parallel threads for dataloaders')
@@ -70,6 +73,7 @@ if __name__ == "__main__":
     source_img_transforms = transforms.Compose([ArrayToTensor(get_float=False)])
     target_img_transforms = transforms.Compose([ArrayToTensor(get_float=False)])
 
+    args.pre_loaded_training_dataset = True
     if not args.pre_loaded_training_dataset:
         # training dataset, created on the fly at each epoch
         pyramid_param = [520] # means that we get the ground-truth flow field at this size
@@ -97,20 +101,22 @@ if __name__ == "__main__":
         # If synthetic pairs were already created and saved to disk, run instead of 'train_dataset' the following.
         # and replace args.training_data_dir by the root to folders containing images/ and flow/
 
-        flow_transform = transforms.Compose([ArrayToTensor()]) # just put channels first and put it to float
-        train_dataset, _ = PreMadeDataset(root=args.training_data_dir,
-                                          source_image_transform=source_img_transforms,
-                                          target_image_transform=target_img_transforms,
-                                          flow_transform=flow_transform,
-                                          co_transform=None,
-                                          split=1)  # only training
+        # flow_transform = transforms.Compose([ArrayToTensor()]) # just put channels first and put it to float
+        # train_dataset, _ = PreMadeDataset(root=args.training_data_dir,
+        #                                   source_image_transform=source_img_transforms,
+        #                                   target_image_transform=target_img_transforms,
+        #                                   flow_transform=flow_transform,
+        #                                   co_transform=None,
+        #                                   split=1)  # only training
+        #
+        # _, val_dataset = PreMadeDataset(root=args.evaluation_data_dir,
+        #                                 source_image_transform=source_img_transforms,
+        #                                 target_image_transform=target_img_transforms,
+        #                                 flow_transform=flow_transform,
+        #                                 co_transform=None,
+        #                                 split=0)  # only validation
 
-        _, val_dataset = PreMadeDataset(root=args.evaluation_data_dir,
-                                        source_image_transform=source_img_transforms,
-                                        target_image_transform=target_img_transforms,
-                                        flow_transform=flow_transform,
-                                        co_transform=None,
-                                        split=0)  # only validation
+        train_dataset = PoseDataset('./Datasets/small_megadepth_pair.npy')
 
     # Dataloader
     train_dataloader = DataLoader(train_dataset,
@@ -118,10 +124,10 @@ if __name__ == "__main__":
                                   shuffle=True,
                                   num_workers=args.n_threads)
 
-    val_dataloader = DataLoader(val_dataset,
-                                batch_size=args.batch_size,
-                                shuffle=False,
-                                num_workers=args.n_threads)
+    # val_dataloader = DataLoader(val_dataset,
+    #                             batch_size=args.batch_size,
+    #                             shuffle=False,
+    #                             num_workers=args.n_threads)
 
 
     # models
@@ -221,32 +227,38 @@ if __name__ == "__main__":
         print(colored('==> ', 'green') + 'Train average loss:', train_loss)
 
         # Validation
-        val_loss_grid, val_mean_epe, val_mean_epe_H_8, val_mean_epe_32, val_mean_epe_16 = \
-            validate_epoch(model, val_dataloader, device, epoch=epoch,
-                           save_path=os.path.join(save_path, 'test'),
-                           div_flow=args.div_flow,
-                           loss_grid_weights=weights_loss_coeffs)
-        print(colored('==> ', 'blue') + 'Val average grid loss :',
-              val_loss_grid)
-        print('mean EPE is {}'.format(val_mean_epe))
-        print('mean EPE from reso H/8 is {}'.format(val_mean_epe_H_8))
-        print('mean EPE from reso 32 is {}'.format(val_mean_epe_32))
-        print('mean EPE from reso 16 is {}'.format(val_mean_epe_16))
-        test_writer.add_scalar('validation images: mean EPE ', val_mean_epe, epoch)
-        test_writer.add_scalar('validation images: mean EPE_from_reso_H_8', val_mean_epe_H_8, epoch)
-        test_writer.add_scalar('validation images: mean EPE_from_reso_32', val_mean_epe_32, epoch)
-        test_writer.add_scalar('validation images: mean EPE_from_reso_16', val_mean_epe_16, epoch)
-        test_writer.add_scalar('validation images: val loss', val_loss_grid, epoch)
-        print(colored('==> ', 'blue') + 'finished epoch :', epoch + 1)
+        # val_loss_grid, val_mean_epe, val_mean_epe_H_8, val_mean_epe_32, val_mean_epe_16 = \
+        #     validate_epoch(model, val_dataloader, device, epoch=epoch,
+        #                    save_path=os.path.join(save_path, 'test'),
+        #                    div_flow=args.div_flow,
+        #                    loss_grid_weights=weights_loss_coeffs)
+        # print(colored('==> ', 'blue') + 'Val average grid loss :',
+        #       val_loss_grid)
+        # print('mean EPE is {}'.format(val_mean_epe))
+        # print('mean EPE from reso H/8 is {}'.format(val_mean_epe_H_8))
+        # print('mean EPE from reso 32 is {}'.format(val_mean_epe_32))
+        # print('mean EPE from reso 16 is {}'.format(val_mean_epe_16))
+        # test_writer.add_scalar('validation images: mean EPE ', val_mean_epe, epoch)
+        # test_writer.add_scalar('validation images: mean EPE_from_reso_H_8', val_mean_epe_H_8, epoch)
+        # test_writer.add_scalar('validation images: mean EPE_from_reso_32', val_mean_epe_32, epoch)
+        # test_writer.add_scalar('validation images: mean EPE_from_reso_16', val_mean_epe_16, epoch)
+        # test_writer.add_scalar('validation images: val loss', val_loss_grid, epoch)
+        # print(colored('==> ', 'blue') + 'finished epoch :', epoch + 1)
+        #
+        # # save checkpoint for each epoch and a fine called best_model so far
+        # is_best = val_mean_epe < best_val
+        # best_val = min(val_mean_epe, best_val)
+        # save_checkpoint({'epoch': epoch + 1,
+        #                  'state_dict': model.module.state_dict(),
+        #                  'optimizer': optimizer.state_dict(),
+        #                  'scheduler': scheduler.state_dict(),
+        #                  'best_loss': best_val},
+        #                 is_best, save_path, 'epoch_{}.pth'.format(epoch + 1))
 
-        # save checkpoint for each epoch and a fine called best_model so far
-        is_best = val_mean_epe < best_val
-        best_val = min(val_mean_epe, best_val)
         save_checkpoint({'epoch': epoch + 1,
                          'state_dict': model.module.state_dict(),
                          'optimizer': optimizer.state_dict(),
                          'scheduler': scheduler.state_dict(),
-                         'best_loss': best_val},
-                        is_best, save_path, 'epoch_{}.pth'.format(epoch + 1))
+                         'best_loss': best_val}, True, save_path, 'epoch_{}.pth'.format(epoch + 1))
 
     print(args.seed, 'Training took:', time.time()-train_started, 'seconds')

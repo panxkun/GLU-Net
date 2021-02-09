@@ -190,51 +190,34 @@ def train_epoch(net,
         weights_original = loss_grid_weights[-len(output_net_original):]
 
         # at 256x256 resolution, b, _, 256, 256
-        if sparse:
-            flow_gt_256 = sparse_max_pool(flow_gt_original, (256, 256))
-        else:
-            flow_gt_256 = F.interpolate(flow_gt_original, (256, 256),
+        flow_gt_256 = F.interpolate(flow_gt_original, (256, 256),
                                         mode='bilinear', align_corners=False)
         flow_gt_256[:,0,:,:] *= 256.0/float(w_original)
         flow_gt_256[:,1,:,:] *= 256.0/float(h_original)
         bs, _, h_256, w_256 = flow_gt_256.shape
         weights_256 = loss_grid_weights[:len(output_net_256)]
 
-        # calculate the loss, depending on mask conditions
-        if apply_mask:
-            mask = mini_batch['correspondence_mask'].to(device)  # bxhxw, torch.uint8
-            Loss = multiscaleEPE(output_net_original, flow_gt_original, weights=weights_original, sparse=sparse,
-                                 mean=False, mask=mask, robust_L1_loss=robust_L1_loss)
-            if sparse:
-                mask_256 = sparse_max_pool(mask.unsqueeze(1).float(), (256, 256)).squeeze(1).byte() # bx256x256
-            else:
-                mask_256 = F.interpolate(mask.unsqueeze(1).float(), (256, 256), mode='bilinear',
-                                           align_corners=False).squeeze(1).byte() # bx256x256
-            Loss += multiscaleEPE(output_net_256, flow_gt_256, weights=weights_256, sparse=sparse,
-                                 mean=False, mask=mask_256, robust_L1_loss=robust_L1_loss)
-        else:
-            Loss = multiscaleEPE(output_net_original, flow_gt_original, weights=weights_original, sparse=False,
-                                 mean=False, robust_L1_loss=robust_L1_loss)
-            Loss += multiscaleEPE(output_net_256, flow_gt_256, weights=weights_256, sparse=False,
-                                 mean=False, robust_L1_loss=robust_L1_loss)
+
+        Loss = multiscaleEPE(output_net_original, flow_gt_original, weights=weights_original, sparse=False,
+                             mean=False, robust_L1_loss=robust_L1_loss)
+        Loss += multiscaleEPE(output_net_256, flow_gt_256, weights=weights_256, sparse=False,
+                             mean=False, robust_L1_loss=robust_L1_loss)
+        # print(Loss.item())
+
+        # output_net_original [H/8, W/8] [H/4, W/4]
+        # output_net_256      [16, 16] [32, 32]
+
+        # from utils_training.geometry_loss import geometry_loss
+        #
+        # F = mini_batch['F'].permute([0, 1, 3, 2]).cuda()
+        # Loss = geometry_loss(output_net_original[0], F[:, 0])
+        # Loss += geometry_loss(output_net_original[1], F[:, 1])
+        # Loss += geometry_loss(output_net_256[0], F[:, 2])
+        # Loss += geometry_loss(output_net_256[1], F[:, 3])
 
         Loss.backward()
         optimizer.step()
 
-        if i < 4:  # log first output of first batches
-            if apply_mask:
-                plot_during_training(save_path, epoch, i, apply_mask,
-                                     h_original, w_original, h_256, w_256,
-                                     source_image, target_image, source_image_256, target_image_256, div_flow,
-                                     flow_gt_original, flow_gt_256, output_net=output_net_original[-1],
-                                     output_net_256=output_net_256[-1],
-                                     mask=mask, mask_256=mask_256)
-            else:
-                plot_during_training(save_path, epoch, i, apply_mask,
-                                     h_original, w_original, h_256, w_256,
-                                     source_image, target_image, source_image_256, target_image_256, div_flow,
-                                     flow_gt_original, flow_gt_256, output_net=output_net_original[-1],
-                                     output_net_256=output_net_256[-1])
 
         running_total_loss += Loss.item()
         train_writer.add_scalar('train_loss_per_iter', Loss.item(), n_iter)
@@ -244,7 +227,6 @@ def train_epoch(net,
                                              Loss.item()))
     running_total_loss /= len(train_loader)
     return running_total_loss
-
 
 def validate_epoch(net,
                    val_loader,

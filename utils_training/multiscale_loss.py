@@ -72,6 +72,9 @@ def multiscaleEPE(network_output, target_flow, robust_L1_loss=False, mask=None, 
     '''
 
     def one_scale(output, target, sparse, robust_L1_loss=False, mask=None, mean=False):
+
+        # print(torch.norm(output, p=1, dim=1).mean())
+
         b, _, h, w = output.size()
         if sparse:
             target_scaled = sparse_max_pool(target, (h, w))
